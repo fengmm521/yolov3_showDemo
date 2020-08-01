@@ -1,6 +1,0 @@
-classes= 4
-train  = /Users/mage/Documents/github/autoTouchWithML/darknet/data/train.txt
-valid  = /Users/mage/Documents/github/autoTouchWithML/darknet/data/val.txt
-names = /Users/mage/Documents/github/autoTouchWithML/darknet/data/my.names
-backup = /Users/mage/Documents/github/autoTouchWithML/darknet/backup/
-
