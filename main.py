@@ -11,6 +11,7 @@ import numpy as np
 import cv2
 import gameyolo
 import json
+import math
 
 #截取电脑屏图像
 def capImg(box = (0,50,1100,1440)):
@@ -43,6 +44,70 @@ def getObjects(yolonet,image):
     showImg(roimg)
     return boxdict
 
+#计算两点间距离
+def getDistance(v1,v2):
+    dis = math.sqrt(math.pow(v1[0]-v2[0],2) + math.pow(v1[1]-v2[1],2))
+    return int(dis)
+   
+
+#所有锚点的坐标偏移都为x方向为宽度一半,y方向上:f和c为向下半个宽度,r为向上半个宽度,s的x,y为w,h的一半
+
+msPerDistence = 1.0  #每个像素坐表示多常时间的毫秒延时
+
+def getTouchTimeDelay(boxes):
+    rbox = {}       #跳一跳小人坐标盒子
+    fboxes = []     #所有方块的坐标盒子
+    cbox = []       #所有圆型块坐标盒子
+    sbox = {}       #开始游戏坐标盒子
+    for i,v in boxes.iteritems():
+        # v={'x':x,'y':y,'w':w,'h':h,'t':self.LABELS[classIDs[i]],'s':confidences[i]}
+        if v['t'] == 'r':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + (v['h'] - v['w']/2.0))
+            rbox = v
+            rbox['p'] = [Px,Py]
+        elif v['t'] == 'f':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + v['w']/2.0)
+            tmpv = v
+            tmpv['p'] = [Px,Py]
+            fboxes.append(tmpv)
+        elif v['t'] == 'c':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + v['w']/2.0)
+            tmpv = v
+            tmpv['p'] = [Px,Py]
+            cboxes.append(tmpv)
+        elif v['t'] == 's':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + v['h']/2.0)
+            sbox = v
+            sbox['p'] = [Px,Py]
+        else:
+            print('fand type erro....')
+            return -1
+    #计算所有块与小人距离,以及下一个人跳到的块是那一个
+    nextBox = 0
+    nextdis = 0
+    minPy = 10000
+    mindis = 10000
+    rindex = 0
+    for i,v in enumerate(fboxes):
+        dis = getDistance((v['p']), rbox['p']
+        if dis <= mindis:
+            rindex = i
+            mindis = dis
+        if v['p'][1] < rbox['p'][1]:
+            tmppy = rbox['p'][1] - v['p'][1]
+            if tmppy < minPy:
+                minPy = tmppy
+                nextBox = i
+                nextdis = dis
+    print(rbox['p'],fboxes[rindex]['p'],fboxes[nextBox]['p'],nextdis)
+    #计算距离转换为延时间
+    dtime = int(nextdis*msPerDistence)
+    print('delytime:%d'%(dtime)))
+    return dtime
 
 def main():
     labelsPath = os.getcwd() + os.sep +'yolo-net' +os.sep + 'my.names'
@@ -62,6 +127,7 @@ def main():
             img = capImg()
             boxes = getObjects(yolonet, img)
             print(boxes)
+            getTouchTimeDelay(boxes)
         elif 0xFF & cv2.waitKey(0) == ord('q'):
             break
     
