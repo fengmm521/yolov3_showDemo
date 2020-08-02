@@ -12,6 +12,7 @@ import cv2
 import gameyolo
 import json
 import math
+import touchSocket
 
 #截取电脑屏图像
 def capImg(box = (0,50,1100,1440)):
@@ -52,14 +53,14 @@ def getDistance(v1,v2):
 
 #所有锚点的坐标偏移都为x方向为宽度一半,y方向上:f和c为向下半个宽度,r为向上半个宽度,s的x,y为w,h的一半
 
-msPerDistence = 1.0  #每个像素坐表示多常时间的毫秒延时
+msPerDistence = 1.8  #每个像素坐表示多常时间的毫秒延时
 
 def getTouchTimeDelay(boxes):
     rbox = {}       #跳一跳小人坐标盒子
     fboxes = []     #所有方块的坐标盒子
-    cbox = []       #所有圆型块坐标盒子
+    # cbox = []       #所有圆型块坐标盒子
     sbox = {}       #开始游戏坐标盒子
-    for i,v in boxes.iteritems():
+    for i,v in boxes.items():
         # v={'x':x,'y':y,'w':w,'h':h,'t':self.LABELS[classIDs[i]],'s':confidences[i]}
         if v['t'] == 'r':
             Px = int(v['x'] + v['w']/2.0)
@@ -77,7 +78,7 @@ def getTouchTimeDelay(boxes):
             Py = int(v['y'] + v['w']/2.0)
             tmpv = v
             tmpv['p'] = [Px,Py]
-            cboxes.append(tmpv)
+            fboxes.append(tmpv)
         elif v['t'] == 's':
             Px = int(v['x'] + v['w']/2.0)
             Py = int(v['y'] + v['h']/2.0)
@@ -85,15 +86,18 @@ def getTouchTimeDelay(boxes):
             sbox['p'] = [Px,Py]
         else:
             print('fand type erro....')
-            return -1
+            return -2
     #计算所有块与小人距离,以及下一个人跳到的块是那一个
     nextBox = 0
     nextdis = 0
     minPy = 10000
     mindis = 10000
     rindex = 0
+    if sbox:
+        print('is start UI...')
+        return -1
     for i,v in enumerate(fboxes):
-        dis = getDistance((v['p']), rbox['p']
+        dis = getDistance((v['p']), rbox['p'])
         if dis <= mindis:
             rindex = i
             mindis = dis
@@ -106,10 +110,12 @@ def getTouchTimeDelay(boxes):
     print(rbox['p'],fboxes[rindex]['p'],fboxes[nextBox]['p'],nextdis)
     #计算距离转换为延时间
     dtime = int(nextdis*msPerDistence)
-    print('delytime:%d'%(dtime)))
+    print('delytime:%d'%(dtime))
     return dtime
 
 def main():
+    touchclient = touchSocket.ClientSocket('192.168.0.193')
+
     labelsPath = os.getcwd() + os.sep +'yolo-net' +os.sep + 'my.names'
     weightsPath = os.getcwd() + os.sep +'yolo-net'+ os.sep + "yolov3.weights"
     configPath = os.getcwd() + os.sep +'yolo-net' + os.sep + "yolov3.cfg"
