@@ -20,7 +20,7 @@ import threading
 import tktool
 
 #截取电脑屏图像
-def capImg(box = (0,50,1100,1440)):
+def capImg(box = (0,50,1100,1490)):
     
     img = ImageGrab.grab(bbox=box)#设置窗口大小
     pilimg = img.convert('RGB')
@@ -59,7 +59,7 @@ def getDistance(v1,v2):
 
 #所有锚点的坐标偏移都为x方向为宽度一半,y方向上:f和c为向下半个宽度,r为向上半个宽度,s的x,y为w,h的一半
 
-msPerDistence = 1.48  #每个像素坐表示多常时间的毫秒延时
+msPerDistence = 1.47  #每个像素坐表示多常时间的毫秒延时
 
 def getTouchTimeDelay(boxes):
     rbox = {}       #跳一跳小人坐标盒子
@@ -110,10 +110,10 @@ def getTouchTimeDelay(boxes):
                 rindex = i
                 mindis = dis
         
-        fboxes.pop(rindex)
+        rfbox = fboxes.pop(rindex)
         for i,v in enumerate(fboxes):
             dis = getDistance((v['p']), rbox['p'])
-            if v['p'][1] < rbox['p'][1]:
+            if v['p'][1] < rfbox['p'][1]:
                 tmppy = rbox['p'][1] - v['p'][1]
                 if tmppy < minPy:
                     minPy = tmppy
@@ -123,6 +123,8 @@ def getTouchTimeDelay(boxes):
         # print(rbox['p'],fboxes[rindex]['p'],fboxes[nextBox]['p'],nextdis)
         #计算距离转换为延时间
         dtime = int(nextdis*msPerDistence)
+        # if dtime > 800:
+        #     dtime -=50
         print('delytime:%d'%(dtime))
         return dtime
     except Exception as e:
