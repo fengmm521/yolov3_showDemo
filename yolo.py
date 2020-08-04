@@ -7,6 +7,85 @@ import argparse
 import time
 import cv2
 import os
+from PIL import Image
+import math
+
+def conventPNG2JPEG(spth,tpth):
+    im = Image.open(spth)
+    rgb_im=im.convert('RGB')
+    rgb_im.save(tpth)
+
+#计算两点间距离
+def getDistance(v1,v2):
+    dis = math.sqrt(math.pow(v1[0]-v2[0],2) + math.pow(v1[1]-v2[1],2))
+    return int(dis)
+   
+
+#所有锚点的坐标偏移都为x方向为宽度一半,y方向上:f和c为向下半个宽度,r为向上半个宽度,s的x,y为w,h的一半
+
+msPerDistence = 1.48  #每个像素坐表示多常时间的毫秒延时
+
+def getTouchTimeDelay(boxes):
+    rbox = {}       #跳一跳小人坐标盒子
+    fboxes = []     #所有方块的坐标盒子
+    # cbox = []       #所有圆型块坐标盒子
+    sbox = {}       #开始游戏坐标盒子
+    for i,v in boxes.items():
+        # v={'x':x,'y':y,'w':w,'h':h,'t':self.LABELS[classIDs[i]],'s':confidences[i]}
+        if v['t'] == 'r':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + (v['h'] - v['w']/2.0))
+            rbox = v
+            rbox['p'] = [Px,Py]
+        elif v['t'] == 'f':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + v['w']/2.0)
+            tmpv = v
+            tmpv['p'] = [Px,Py]
+            fboxes.append(tmpv)
+        elif v['t'] == 'c':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + v['w']/2.0)
+            tmpv = v
+            tmpv['p'] = [Px,Py]
+            fboxes.append(tmpv)
+        elif v['t'] == 's':
+            Px = int(v['x'] + v['w']/2.0)
+            Py = int(v['y'] + v['h']/2.0)
+            sbox = v
+            sbox['p'] = [Px,Py]
+        else:
+            print('fand type erro....')
+            return -2
+    #计算所有块与小人距离,以及下一个人跳到的块是那一个
+    nextBox = 0
+    nextdis = 0
+    minPy = 10000
+    mindis = 10000
+    rindex = 0
+    if sbox:
+        print('is start UI...')
+        return -1
+    try:
+        for i,v in enumerate(fboxes):
+            dis = getDistance((v['p']), rbox['p'])
+            if dis <= mindis:
+                rindex = i
+                mindis = dis
+            if v['p'][1] < rbox['p'][1]:
+                tmppy = rbox['p'][1] - v['p'][1]
+                if tmppy < minPy:
+                    minPy = tmppy
+                    nextBox = i
+                    nextdis = dis
+        print(rbox['p'],fboxes[rindex]['p'],fboxes[nextBox]['p'],nextdis)
+        #计算距离转换为延时间
+        dtime = int(nextdis*msPerDistence)
+        print('delytime:%d'%(dtime))
+        return dtime
+    except Exception as e:
+        print(e)
+        print('getDistance erro...')
 
 def showImg():
 	# construct the argument parse and parse the arguments
@@ -39,7 +118,14 @@ def showImg():
 	net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
 
 	# load our input image and grab its spatial dimensions
-	image = cv2.imread(args["image"])
+	imgpth = args["image"]
+	namepth,formatimg = os.path.splitext(imgpth)
+	argpth = imgpth
+	if  formatimg.lower() == '.png':
+		tpth = namepth + '.jpg'
+		conventPNG2JPEG(imgpth, tpth)
+		argpth = tpth
+	image = cv2.imread(argpth)
 	(H, W) = image.shape[:2]
 
 	# determine only the *output* layer names that we need from YOLO
@@ -65,6 +151,7 @@ def showImg():
 	confidences = []
 	classIDs = []
 
+	
 	# loop over each of the layer outputs
 	for output in layerOutputs:
 		# loop over each of the detections
@@ -93,14 +180,18 @@ def showImg():
 				# update our list of bounding box coordinates, confidences,
 				# and class IDs
 				boxes.append([x, y, int(width), int(height)])
+				
 				confidences.append(float(confidence))
 				classIDs.append(classID)
 
 	# apply non-maxima suppression to suppress weak, overlapping bounding
 	# boxes
+	print(boxes)
 	idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"],
 		args["threshold"])
 
+	outbox = {}
+	
 	# ensure at least one detection exists
 	if len(idxs) > 0:
 		# loop over the indexes we are keeping
@@ -115,8 +206,13 @@ def showImg():
 			text = "{}: {:.4f}".format(LABELS[classIDs[i]], confidences[i])
 			cv2.putText(image, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX,
 				0.5, color, 2)
-
-	scalefloat = 0.2
+			outbox[i] = {'x':x,'y':y,'w':w,'h':h,'t':LABELS[classIDs[i]],'s':confidences[i]}
+	for k,v in outbox.items():
+		tmpv = {'p':[v['x'],v['y']],'size':[v['w'],v['h']],'t':v['t'],'s':v['s']}
+		print(tmpv)
+	dtime = getTouchTimeDelay(outbox)
+	print(dtime)
+	scalefloat = 0.3
 	w = int(image.shape[1]*scalefloat)
 	h = int(image.shape[0]*scalefloat)
 	resizeimg = cv2.resize(image, (w,h), interpolation = cv2.INTER_AREA)

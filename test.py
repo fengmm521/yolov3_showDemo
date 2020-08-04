@@ -84,8 +84,11 @@ def test2():
     app.after(1000,app.onFrame)
 
     root.mainloop()
-
+def test3():
+    a= 'a/b/c.png'
+    x = os.path.splitext(a)
+    print(x)
 #测试
 if __name__ == '__main__':
-    test2()
+    test3()
     # test1()
