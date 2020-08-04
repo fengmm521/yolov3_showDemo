@@ -143,8 +143,10 @@ def delayTimeFunc(ptime):
 
 def intToHexStrTime(dtime):
     strhex = str(hex(dtime))[2:]
-    if len(strhex)%2 != 0:
+    if len(strhex) == 3:
         strhex = '[0' + strhex + ']'
+    elif len(strhex) == 2:
+        strhex = '[00' + strhex + ']'
     return strhex
 
 
