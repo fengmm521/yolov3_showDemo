@@ -173,8 +173,10 @@ yoloQueue_r = Queue(3) #yolo目标识别模块接收列队
 netQueue_r = Queue(3)  #网络收发模块接收列队
 tkQueue_r = Queue(3)    #tk界面图片显示模块接收图片列队,这个在主线程
 
-
-
+def showBox(box):
+    for k,v in box.items():
+        tmpv = {'p':[v['x'],v['y']],'size':[v['w'],v['h']],'t':v['t'],'s':v['s']}
+        print(tmpv)
 #图片识别线程
 def yoloThread(t):
     global yolonet
@@ -189,7 +191,12 @@ def yoloThread(t):
             print('yoloImage code')
             objtmp = yoloQueue_r.get()
             bx,oimg = getObjects(yolonet, objtmp.data)
+            showBox(bx)
             dtime = getTouchTimeDelay(bx)
+            if not dtime:
+                time.sleep(3)
+                continue
+            print('dtime:%d'%(dtime))
             yobj = tktool.DataObj('box', dtime)
             netQueue_r.put(yobj)
             piloimg = Image.fromarray(cv2.cvtColor(oimg,cv2.COLOR_BGR2RGB))
