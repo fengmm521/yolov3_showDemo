@@ -213,8 +213,12 @@ def yoloThread(t):
 
 isRcvClient = True
 
+rcvTime = 0
+
 def rcvServerData(dat):
     global isRcvClient
+    global rcvTime
+    rcvTime = time.time()
     isRcvClient = True
     print('rcvdata:%s'%(dat))
 
@@ -245,12 +249,15 @@ def netThread(t):
 #获取一张新截图,并发送给YOLO识别线程
 def callbackFunc(tapp):
     global isRcvClient
+    global rcvTime
     print('callbackfunc')
     if isRcvClient:
-        print('capimg')
-        pilimg,cv2img = capImg()
-        item = tktool.DataObj('img', cv2img)
-        yoloQueue_r.put(item)
+        timep = time.time()
+        if timep - rcvTime >=3:#防止接收回来时间太快,方块还没有停下的情况
+            print('capimg')
+            pilimg,cv2img = capImg()
+            item = tktool.DataObj('img', cv2img)
+            yoloQueue_r.put(item)
 
 
 def main():
