@@ -18,15 +18,18 @@ class ClientSocket(object):
         self.socket = socket.socket()  # instantiate
         self.socket.connect((self.serverIP,self.serverPort))
 
-    def send(self,data):
+    def send(self,data,rcvFunc = None):
+        print('send:%s'%(data))
         self.socket.send(data.encode())
-        if self.isRecv:
-            data = self.recv(1024).decode()  # receive response
+        if self.isRecv and len(data) == 1:
+            data = self.socket.recv(1024).decode()  # receive response
             print('Received from server: ' + data)  # show in terminal
-            return data
+            # return data
+            if rcvFunc:
+                rcvFunc(data)
         else:
             print('do not receive server data')
-            return None
+            # return None
 
     def clsoe(self):
         self.socket.close()

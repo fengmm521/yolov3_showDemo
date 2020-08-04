@@ -211,10 +211,18 @@ def yoloThread(t):
             tkobj = tktool.DataObj('img', piloimg)
             tkQueue_r.put(tkobj)
 
+isRcvClient = True
+
+def rcvServerData(dat):
+    global isRcvClient
+    isRcvClient = True
+    print('rcvdata:%s'%(dat))
+
 #网络收发线程
 def netThread(t):
     global client
-    client = touchSocket.ClientSocket('192.168.0.193')
+    global isRcvClient
+    client = touchSocket.ClientSocket('192.168.0.193',isRecvBack = True)
     time.sleep(1)
     client.send('!')
     while True:
@@ -228,17 +236,21 @@ def netThread(t):
                 # client.send('0')
                 strhex = intToHexStrTime(dtime)
                 print(strhex)
-                client.send(strhex)
+                client.send(strhex,rcvServerData)
                 time.sleep(0.1)
-                client.send('1')
+                isRcvClient = False
+                client.send('1',rcvServerData)
 
 
 #获取一张新截图,并发送给YOLO识别线程
 def callbackFunc(tapp):
-    pilimg,cv2img = capImg()
-    item = tktool.DataObj('img', cv2img)
-    yoloQueue_r.put(item)
+    global isRcvClient
     print('callbackfunc')
+    if isRcvClient:
+        print('capimg')
+        pilimg,cv2img = capImg()
+        item = tktool.DataObj('img', cv2img)
+        yoloQueue_r.put(item)
 
 
 def main():
