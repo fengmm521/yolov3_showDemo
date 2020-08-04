@@ -72,12 +72,17 @@ def getTouchTimeDelay(boxes):
             if dis <= mindis:
                 rindex = i
                 mindis = dis
+               	break
+        
+        fboxes.pop(rindex)
+        for i,v in enumerate(fboxes):
             if v['p'][1] < rbox['p'][1]:
                 tmppy = rbox['p'][1] - v['p'][1]
                 if tmppy < minPy:
                     minPy = tmppy
                     nextBox = i
                     nextdis = dis
+        print(minPy,mindis,rindex,nextBox)
         print(rbox['p'],fboxes[rindex]['p'],fboxes[nextBox]['p'],nextdis)
         #计算距离转换为延时间
         dtime = int(nextdis*msPerDistence)
