@@ -6,21 +6,27 @@
 # @Version : $Id$
 
 import os,sys
-from PIL import ImageGrab
+from PIL import ImageGrab,Image, ImageTk
 import numpy as np 
 import cv2
 import gameyolo
 import json
 import math
 import touchSocket
+import time
+from queue import Queue
+import tkinter as tk
+import threading
+import tktool
 
 #截取电脑屏图像
 def capImg(box = (0,50,1100,1440)):
     
     img = ImageGrab.grab(bbox=box)#设置窗口大小
-    img = img.convert('RGB')
-    img_np = np.array(img)
-    return img_np
+    pilimg = img.convert('RGB')
+    cv2img = cv2.cvtColor(np.asarray(pilimg),cv2.COLOR_RGB2BGR)
+    # img_np = np.array(img)
+    return pilimg,cv2img
 
 #缩放图片
 def resizeImg(img,scale = 0.45):
@@ -41,9 +47,9 @@ def moveWindow(winName,x,y):
 
 def getObjects(yolonet,image):
     oimg,boxdict = yolonet.fandObjects(image)
-    roimg = resizeImg(oimg)
-    showImg(roimg)
-    return boxdict
+    # roimg = resizeImg(oimg)
+    # showImg(roimg)
+    return boxdict,oimg
 
 #计算两点间距离
 def getDistance(v1,v2):
@@ -53,7 +59,7 @@ def getDistance(v1,v2):
 
 #所有锚点的坐标偏移都为x方向为宽度一半,y方向上:f和c为向下半个宽度,r为向上半个宽度,s的x,y为w,h的一半
 
-msPerDistence = 1.8  #每个像素坐表示多常时间的毫秒延时
+msPerDistence = 1.48  #每个像素坐表示多常时间的毫秒延时
 
 def getTouchTimeDelay(boxes):
     rbox = {}       #跳一跳小人坐标盒子
@@ -96,46 +102,144 @@ def getTouchTimeDelay(boxes):
     if sbox:
         print('is start UI...')
         return -1
-    for i,v in enumerate(fboxes):
-        dis = getDistance((v['p']), rbox['p'])
-        if dis <= mindis:
-            rindex = i
-            mindis = dis
-        if v['p'][1] < rbox['p'][1]:
-            tmppy = rbox['p'][1] - v['p'][1]
-            if tmppy < minPy:
-                minPy = tmppy
-                nextBox = i
-                nextdis = dis
-    print(rbox['p'],fboxes[rindex]['p'],fboxes[nextBox]['p'],nextdis)
-    #计算距离转换为延时间
-    dtime = int(nextdis*msPerDistence)
-    print('delytime:%d'%(dtime))
-    return dtime
+    try:
+        for i,v in enumerate(fboxes):
+            dis = getDistance((v['p']), rbox['p'])
+            if dis <= mindis:
+                rindex = i
+                mindis = dis
+            if v['p'][1] < rbox['p'][1]:
+                tmppy = rbox['p'][1] - v['p'][1]
+                if tmppy < minPy:
+                    minPy = tmppy
+                    nextBox = i
+                    nextdis = dis
+        print(rbox['p'],fboxes[rindex]['p'],fboxes[nextBox]['p'],nextdis)
+        #计算距离转换为延时间
+        dtime = int(nextdis*msPerDistence)
+        print('delytime:%d'%(dtime))
+        return dtime
+    except Exception as e:
+        print(e)
+        print('getDistance erro...')
+    
 
-def main():
-    touchclient = touchSocket.ClientSocket('192.168.0.193')
 
+client = None
+
+
+def setUnTouch():
+    global client
+    if client:
+        client.send('1')
+
+def delayTimeFunc(ptime):
+    print(ptime)
+    setUnTouch()
+
+def intToHexStrTime(dtime):
+    strhex = str(hex(dtime))[2:]
+    if len(strhex)%2 != 0:
+        strhex = '[0' + strhex + ']'
+    return strhex
+
+
+def setTouch(dtime):
+    global client
+    if client:
+        tmptime = dtime/1000.0 - delayNetTime
+        if tmptime < 0:
+            return False
+        # client.send('0')
+        strhex = intToHexStrTime(dtime)
+        print(strhex)
+        client.send(strhex)
+        time.sleep(0.1)
+        client.send('1')
+        
+
+def isControl():
+    f = open('control.txt','r')
+    s = f.read()
+    f.close()
+    if s == '0':
+        return False
+    else:
+        return True
+
+yolonet = None
+    
+yoloQueue_r = Queue(3) #yolo目标识别模块接收列队
+netQueue_r = Queue(3)  #网络收发模块接收列队
+tkQueue_r = Queue(3)    #tk界面图片显示模块接收图片列队,这个在主线程
+
+
+
+#图片识别线程
+def yoloThread(t):
+    global yolonet
     labelsPath = os.getcwd() + os.sep +'yolo-net' +os.sep + 'my.names'
     weightsPath = os.getcwd() + os.sep +'yolo-net'+ os.sep + "yolov3.weights"
     configPath = os.getcwd() + os.sep +'yolo-net' + os.sep + "yolov3.cfg"
     yolonet = gameyolo.YOLONet(weightsPath, configPath, labelsPath)
-    #左上角x,y,右下角x,y
-    # box = (0,50,1100,1440)
-    img = capImg()
-    rimg = resizeImg(img)
-    wName = showImg(rimg)
-    moveWindow(wName, 600, 0)
-    # isRun = True
+    squeue = Queue(3)
     while True:
-        #每输入一个空格时进行下一次截图并识别
-        if 0xFF & cv2.waitKey(0) == ord(' '):  
-            img = capImg()
-            boxes = getObjects(yolonet, img)
-            print(boxes)
-            getTouchTimeDelay(boxes)
-        elif 0xFF & cv2.waitKey(0) == ord('q'):
-            break
+        time.sleep(0.1)
+        if not yoloQueue_r.empty():
+            print('yoloImage code')
+            objtmp = yoloQueue_r.get()
+            bx,oimg = getObjects(yolonet, objtmp.data)
+            dtime = getTouchTimeDelay(bx)
+            yobj = tktool.DataObj('box', dtime)
+            netQueue_r.put(yobj)
+            piloimg = Image.fromarray(cv2.cvtColor(oimg,cv2.COLOR_BGR2RGB))
+            tkobj = tktool.DataObj('img', piloimg)
+            tkQueue_r.put(tkobj)
+
+#网络收发线程
+def netThread(t):
+    global client
+    client = touchSocket.ClientSocket('192.168.0.193')
+    time.sleep(1)
+    client.send('!')
+    while True:
+        time.sleep(0.1)
+        if not netQueue_r.empty():
+            objtmp = netQueue_r.get()
+            dtime = objtmp.data
+            if client and dtime:
+                if dtime < 50:
+                    return False
+                # client.send('0')
+                strhex = intToHexStrTime(dtime)
+                print(strhex)
+                client.send(strhex)
+                time.sleep(0.1)
+                client.send('1')
+
+
+#获取一张新截图,并发送给YOLO识别线程
+def callbackFunc(tapp):
+    pilimg,cv2img = capImg()
+    item = tktool.DataObj('img', cv2img)
+    yoloQueue_r.put(item)
+    print('callbackfunc')
+
+
+def main():
+    netTh = threading.Thread(target=netThread,args=(None,))
+    netTh.setDaemon(True)
+    netTh.start()
+    yoloTh = threading.Thread(target=yoloThread,args=(None,))
+    yoloTh.setDaemon(True)
+    yoloTh.start()
+
+    root = tk.Tk()
+    app = tktool.App(root,callbackFunc,tkQueue_r)
+    root.geometry("+600+0")
+    app.after(3000,app.onFrame)
+    root.mainloop()
+    
     
 
 if __name__ == '__main__':

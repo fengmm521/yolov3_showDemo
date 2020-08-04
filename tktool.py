@@ -6,36 +6,19 @@
 # @Version : $Id$
 
 import os,sys
-import touchSocket
-import time
-
-def test1():
-    # x = '06ff'
-    # x = x[::-1]
-    # print(x)
-    a = 1000
-    b= str(hex(a))
-    print(b)
-
-def test():
-    # a= {'a':1,'b':2}
-    # print(a.a)
-    client = touchSocket.ClientSocket('192.168.0.193')
-    time.sleep(1)
-    client.send('!')
-    x = '[06ff]'
-    print(x)
-    client.send(x)
-    client.send('1')
-    while True:
-        client.send('1')
-        time.sleep(10)
-
 import tkinter as tk
 from PIL import Image, ImageTk
+from queue import Queue
+
+class DataObj():
+    def __init__(self,pcmd,pdata):
+        self.cmd = pcmd
+        self.data = pdata
+
+Dtime = 50
 
 class App(tk.Frame):
-    def __init__(self, master=None):
+    def __init__(self, master,backFunc,rQueue):
         super().__init__(master, width=400, height=300)
         self.pack()
         self.pilImage = Image.open("images/IMG_1614.jpg")
@@ -47,7 +30,10 @@ class App(tk.Frame):
         self.label = tk.Label(self, image=self.tkImage)
         self.label.pack()
         self.imageIndex = 0
-
+        self.rFunc = backFunc
+        self.step = 0
+        self.delayStep = Dtime
+        self.imgQueue = rQueue
     def resizeImg(self,pilimg):
         w,h = pilimg.size
         w = int(w*0.3)
@@ -55,37 +41,43 @@ class App(tk.Frame):
         rimg = pilimg.resize((w,h),Image.ANTIALIAS)
         return rimg
 
-    def processEvent(self):
-        tmpimgpth = ''
-        self.imageIndex += 1
-        if self.imageIndex == 0:
-            tmpimgpth = 'images/IMG_1614.jpg'
-        elif self.imageIndex == 1:
-            tmpimgpth = 'images/IMG_1615.jpg'
-        else:
-            tmpimgpth = 'images/IMG_1616.jpg'
-            self.imageIndex = -1
-        self.pilImage = Image.open(tmpimgpth)
-        self.pilImage = self.resizeImg(self.pilImage)
-        self.tkImage = ImageTk.PhotoImage(image=self.pilImage)
+    def showImg(self,pilimg):
+        img = self.resizeImg(pilimg)
+        self.tkImage = ImageTk.PhotoImage(image=img)
         self.label.configure(image=self.tkImage)
         self.label.image = self.tkImage
         self.label.update()
-        print('xxx')
+
+    def processEvent(self):
+        if not self.imgQueue.empty():
+            objtmp = self.imgQueue.get()
+            # piloimg = Image.fromarray(cv2.cvtColor(objtmp.data,cv2.COLOR_BGR2RGB))
+            self.showImg(objtmp.data)
+            self.step += 1
+            print('step:%d'%(self.step))
+
     def onFrame(self):
+        self.delayStep -=1
+        if self.delayStep < 0:
+            if self.rFunc:
+                self.rFunc(self) #在主线程获取新截图
+            self.delayStep = Dtime
         self.processEvent()
-        self.after(1000,self.onFrame)
+        self.after(100,self.onFrame)
         
-def test2():
+def callbackFunc():
+    pass
+
+def main():
     #encoding=utf-8
     root = tk.Tk()
-    app = App(root)
+    app = App(root,callbackFunc)
     root.geometry("+600+0")
-    app.after(1000,app.onFrame)
+    app.after(3000,app.onFrame)
 
     root.mainloop()
 
 #测试
 if __name__ == '__main__':
-    test2()
+    main()
     # test1()
