@@ -92,7 +92,7 @@ class YOLONet(object):
                 # extract the bounding box coordinates
                 (x, y) = (boxes[i][0], boxes[i][1])
                 (w, h) = (boxes[i][2], boxes[i][3])
-                outboxes[i] = {'x':x,'y':y,'w':w,'h':h,'t':self.LABELS[classIDs[i]],'s':confidences[i]}
+                outboxes[i] = {'x':x,'y':y,'w':w,'h':h,'t':self.LABELS[classIDs[i]],'s':confidences[i],'imgW':W,'imgH':H}
                 # draw a bounding box rectangle and label on the image
                 color = [int(c) for c in self.COLORS[classIDs[i]]]
                 cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
