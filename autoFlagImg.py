@@ -77,9 +77,9 @@ def getImgXmlFloagFile(yolonet,imgpth,savePth):
     boxdict,oimg = getObjects(yolonet, cv2img)
     mmbix,W,H = conventBoxForXY(boxdict)
     print(boxdict)
-    fname,folder = getFileNameAndFolder(imgpth)
-    outxml = '''<annotation>
-    <folder>20200911</folder>
+    fname,folder = getFileNameAndFolder(savePth)
+    outxml = '''<annotation verified="yes">
+    <folder>%s</folder>
     <filename>%s</filename>
     <path>%s</path>
     <source>
@@ -91,7 +91,7 @@ def getImgXmlFloagFile(yolonet,imgpth,savePth):
         <depth>3</depth>
     </size>
     <segmented>0</segmented>
-    '''%(fname,savePth,W,H)
+    '''%(folder,fname,savePth,W,H)
     for k,v in mmbix.items():
         outxml += '''<object>
         <name>%s</name>
