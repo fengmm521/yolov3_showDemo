@@ -91,7 +91,7 @@ def getImgXmlFloagFile(yolonet,imgpth,savePth):
         <depth>3</depth>
     </size>
     <segmented>0</segmented>
-    '''%(fname,folder,W,H)
+    '''%(fname,savePth,W,H)
     for k,v in mmbix.items():
         outxml += '''<object>
         <name>%s</name>
@@ -108,6 +108,7 @@ def getImgXmlFloagFile(yolonet,imgpth,savePth):
     '''%(v['class'],v['minx'],v['miny'],v['maxx'],v['maxy'])
     outxml += '''</annotation>
 '''
+    return outxml
 
 def saveStrToFile(pth,data):
     f = open(pth,'w')
@@ -122,20 +123,41 @@ def copyfile(spth,tpth):
     f.write(dat)
     f.close()
 
+def saveHandXmlName(fname,fxmlpth,outpth):
+    f = open(outpth,'a')
+    ostr = fname + ',' + fxmlpth + '\n'
+    f.write(ostr)
+    f.close()
+
 def main():
     yolonet = getYOLONet()
-    imgDirpth = ''
-    outdirpth = ''
+    imgDirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/20200911'
+    outdirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/out'
+    handpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/handout'
+    outxmlhpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/hand.csv'
     imgs = pathtool.getAllFiles(imgDirpth,'.png')
     for i,v in enumerate(imgs):
         ipth = imgDirpth + v
         print(ipth)
+        fname = getFileNameFromPath(ipth)
+        fxmlpth = imgDirpth + os.sep + fname + '.xml'
         xmlsavepth = outdirpth + os.sep + fname + '.xml'
         saveimgpth = outdirpth + v
+        if os.path.exists(fxmlpth):
+            saveHandXmlName(fname, fxmlpth, outxmlhpth)
+            hsavexmlpth = handpth + os.sep + fname + '.xml'
+            hsaveimgpth = handpth + v
+            copyfile(fxmlpth, hsavexmlpth)
+            copyfile(ipth, hsaveimgpth)
+            continue
+        if os.path.exists(xmlsavepth):
+            print(xmlsavepth)
+            continue
+        xmlstr = getImgXmlFloagFile(yolonet,ipth,saveimgpth)
         saveStrToFile(xmlsavepth, xmlstr)
-        fname = getFileNameFromPath(ipth)
-        xmlstr = getImgXmlFloagFile(yolonet, ipth,saveimgpth)
         copyfile(ipth, saveimgpth)
+        print('index=%d'%(i))
+        time.sleep(0.2)
     
 
 if __name__ == '__main__':

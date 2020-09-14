@@ -1,3 +1,4 @@
 
 *.pyc
 *.PNG
+yolo-net/yolov3.weights
