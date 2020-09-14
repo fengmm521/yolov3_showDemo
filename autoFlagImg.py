@@ -33,15 +33,26 @@ def conventBoxForXY(box):
     W = 0
     H = 0
     for k,v in box.items():
-        minx = v['x']
-        miny = v['y']
-        maxx = v['x'] + v['w']
-        maxy = v['y'] + v['h']
-        #分别改换为坐标和置信度
-        outdict[k] = {'minx':minx,'miny':miny,'maxx':maxx,'maxy':maxy,'class':v['t'],'pencert':v['s']}
         if W == 0:
             W = v['imgW']
             H = v['imgH']
+        minx = v['x']
+        if minx < 0:
+            minx = 0
+        miny = v['y']
+        if miny < 0:
+            miny = 0
+        maxx = v['x'] + v['w']
+        if maxx > W:
+            maxx = W
+        maxy = v['y'] + v['h']
+        if maxy > H:
+            maxy = H
+        #分别改换为坐标和置信度
+        isTru = 0
+        if v['x'] <= 0 or v['y'] <=0 or v['x'] >= W or v['y'] >= H:
+            isTru = 1
+        outdict[k] = {'minx':minx,'miny':miny,'maxx':maxx,'maxy':maxy,'class':v['t'],'pencert':v['s'],'tc':isTru}
     return outdict,W,H
 
 #加载YOLO模型数据
@@ -96,7 +107,7 @@ def getImgXmlFloagFile(yolonet,imgpth,savePth):
         outxml += '''<object>
         <name>%s</name>
         <pose>Unspecified</pose>
-        <truncated>0</truncated>
+        <truncated>%d</truncated>
         <difficult>0</difficult>
         <bndbox>
             <xmin>%d</xmin>
@@ -105,7 +116,7 @@ def getImgXmlFloagFile(yolonet,imgpth,savePth):
             <ymax>%d</ymax>
         </bndbox>
     </object>
-    '''%(v['class'],v['minx'],v['miny'],v['maxx'],v['maxy'])
+    '''%(v['class'],v['tc'],v['minx'],v['miny'],v['maxx'],v['maxy'])
     outxml += '''</annotation>
 '''
     return outxml
@@ -132,6 +143,7 @@ def saveHandXmlName(fname,fxmlpth,outpth):
 def main():
     yolonet = getYOLONet()
     imgDirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/20200911'
+    # imgDirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/autoimg'
     outdirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/out'
     handpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/handout'
     outxmlhpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/hand.csv'
