@@ -6,14 +6,14 @@
 # @Version : $Id$
 
 import os,sys
-from PIL import ImageGrab,Image, ImageTk
+from PIL import Image
 import numpy as np 
 import cv2
 import gameyolo
 import json
 import time
 from magetool import pathtool
-
+import shutil
 #从本地读取一张图片
 def getCVImg(imgpth):
     im = Image.open(imgpth)
@@ -140,13 +140,20 @@ def saveHandXmlName(fname,fxmlpth,outpth):
     f.write(ostr)
     f.close()
 
-def main():
+def main(fdir):
     yolonet = getYOLONet()
-    imgDirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/20200911'
+    imgDirpth = fdir
     # imgDirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/autoimg'
-    outdirpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/out'
-    handpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/handout'
-    outxmlhpth = '/Volumes/mage/res/taobao/labelimg/flogdata/tb_chenbo/hand.csv'
+    farentPth = pathtool.GetParentPath(imgDirpth)
+    outdirpth = farentPth + os.sep + 'out'
+    if os.path.exists(outdirpth):
+        shutil.rmtree(outdirpth)
+    os.mkdir(outdirpth)
+    handpth = farentPth + os.sep + 'handout'
+    if os.path.exists(handpth):
+        shutil.rmtree(handpth)
+    os.mkdir(handpth)
+    outxmlhpth = farentPth + os.sep + 'hand.csv'
     imgs = pathtool.getAllFiles(imgDirpth,'.png')
     for i,v in enumerate(imgs):
         ipth = imgDirpth + v
@@ -173,5 +180,13 @@ def main():
     
 
 if __name__ == '__main__':
-    main()
-
+    args = sys.argv
+    fpth = ''
+    if len(args) == 2 :
+        if os.path.exists(args[1]):
+            fpth = args[1]
+            main(fpth)
+        else:
+            print("请加上要转码的文件路径")
+    else:
+        print("请加上要转码的文件路径")
